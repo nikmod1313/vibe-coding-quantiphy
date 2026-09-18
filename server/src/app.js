@@ -3,6 +3,7 @@ import cors from 'cors';
 import mongoose from 'mongoose';
 import { env } from './config/env.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
+import { conversationsRouter } from './routes/conversations.js';
 
 export const createApp = () => {
   const app = express();
@@ -18,6 +19,8 @@ export const createApp = () => {
       uptime: Math.round(process.uptime()),
     });
   });
+
+  app.use('/api', conversationsRouter);
 
   app.use(notFound);
   app.use(errorHandler);
