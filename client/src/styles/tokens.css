@@ -1,0 +1,40 @@
+:root {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+  --bg-0: #07080d;
+  --bg-1: #0d0f17;
+  --bg-2: #13161f;
+  --bg-3: #1a1e2a;
+  --glass: rgba(255, 255, 255, 0.04);
+  --glass-strong: rgba(255, 255, 255, 0.07);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+
+  --text-0: #f4f5fa;
+  --text-1: #b9bdcc;
+  --text-2: #7d8294;
+  --text-3: #4f5366;
+
+  --accent: #7c5cff;
+  --accent-2: #22d3ee;
+  --accent-gradient: linear-gradient(135deg, #7c5cff 0%, #22d3ee 100%);
+  --danger: #ff5c7a;
+  --success: #34d399;
+
+  --tone-professional: #5b8cff;
+  --tone-casual: #ff8a5b;
+  --tone-concise: #34d399;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-glow: 0 0 0 1px rgba(124, 92, 255, 0.35), 0 8px 32px rgba(124, 92, 255, 0.25);
+
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --sidebar-w: 288px;
+}

@@ -1,122 +1,132 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useCallback, useEffect, useState } from 'react';
+import { api } from './api/client';
+import { useConversations } from './hooks/useConversations';
+import { useChat } from './hooks/useChat';
+import { Sidebar } from './components/Sidebar';
+import { ToneToggle } from './components/ToneToggle';
+import { ChatView } from './components/ChatView';
+import { Composer } from './components/Composer';
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const [tones, setTones] = useState([]);
+  const [defaultTone, setDefaultTone] = useState('professional');
+  const [activeId, setActiveId] = useState(null);
+  const [health, setHealth] = useState(null);
+  const [focusKey, setFocusKey] = useState(0);
+
+  const { conversations, loading, refresh, create, rename, remove } = useConversations();
+  const chat = useChat(activeId, { onConversationUpdated: refresh });
+
+  // Bootstrap: tone presets + health.
+  useEffect(() => {
+    api.tones().then((d) => { setTones(d.tones); setDefaultTone(d.default); }).catch(() => {});
+    const ping = () => api.health().then(setHealth).catch(() => setHealth({ db: 'down', ai: { ready: false } }));
+    ping();
+    const id = setInterval(ping, 15000);
+    return () => clearInterval(id);
+  }, []);
+
+  const activeTone = chat.conversation?.tone ?? defaultTone;
+
+  const newChat = useCallback(async () => {
+    const convo = await create(activeTone);
+    setActiveId(convo._id);
+    setFocusKey((k) => k + 1);
+  }, [create, activeTone]);
+
+  // Sending from the empty state with no thread yet creates one on the fly.
+  const send = useCallback(
+    async (text) => {
+      let id = activeId;
+      if (!id) {
+        const convo = await create(activeTone);
+        id = convo._id;
+        setActiveId(id);
+        // useChat re-binds to the new id on next render; defer the send.
+        setTimeout(() => window.dispatchEvent(new CustomEvent('vibechat:send', { detail: { id, text } })), 0);
+        return;
+      }
+      chat.send(text);
+    },
+    [activeId, activeTone, create, chat],
+  );
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.detail.id === activeId && chat.conversation?._id === activeId) chat.send(e.detail.text);
+    };
+    window.addEventListener('vibechat:send', handler);
+    return () => window.removeEventListener('vibechat:send', handler);
+  }, [activeId, chat]);
+
+  const regenerate = useCallback(
+    (tone) => {
+      const lastUser = [...chat.messages].reverse().find((m) => m.role === 'user');
+      if (lastUser) chat.send(lastUser.content, tone);
+    },
+    [chat],
+  );
+
+  const onDelete = useCallback(
+    async (id) => {
+      await remove(id);
+      if (id === activeId) setActiveId(null);
+    },
+    [remove, activeId],
+  );
+
+  // Keyboard shortcuts.
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); newChat(); }
+      if (e.key === 'Escape' && chat.status !== 'idle') chat.stop();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [newChat, chat]);
+
+  const title = chat.conversation?.title ?? 'New conversation';
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="app">
+      <Sidebar
+        conversations={conversations}
+        loading={loading}
+        activeId={activeId}
+        onSelect={setActiveId}
+        onNew={newChat}
+        onRename={rename}
+        onDelete={onDelete}
+        health={health}
+      />
+      <main className="main">
+        <header className="topbar">
+          <div className="topbar__title">
+            {title}
+            <small>{chat.messages.length ? `${chat.messages.length} messages` : 'Responses adapt to the selected tone'}</small>
+          </div>
+          <ToneToggle
+            tones={tones}
+            value={activeTone}
+            disabled={chat.status !== 'idle'}
+            onChange={(t) => (activeId ? chat.setTone(t) : setDefaultTone(t))}
+          />
+        </header>
 
-      <div className="ticks"></div>
+        <ChatView
+          messages={chat.messages}
+          draft={chat.draft}
+          status={chat.status}
+          error={chat.error}
+          tone={activeTone}
+          tones={tones}
+          onPickSuggestion={send}
+          onRegenerate={regenerate}
+          onDismissError={() => chat.setError(null)}
+        />
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+        <Composer onSend={send} onStop={chat.stop} status={chat.status} focusKey={focusKey} />
+      </main>
+    </div>
+  );
 }
-
-export default App
