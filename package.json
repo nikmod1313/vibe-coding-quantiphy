@@ -3,11 +3,15 @@
   "private": true,
   "version": "1.0.0",
   "description": "AI Chat Assistant with real-time streaming, tone control and MongoDB persistence",
-  "workspaces": ["server", "client"],
+  "workspaces": [
+    "server",
+    "client"
+  ],
   "scripts": {
     "dev": "concurrently -n server,client -c blue,magenta \"npm run dev -w server\" \"npm run dev -w client\"",
     "start": "npm run start -w server",
-    "build": "npm run build -w client"
+    "build": "npm run build -w client",
+    "test": "npm run test -w server"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

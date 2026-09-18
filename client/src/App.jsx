@@ -14,7 +14,7 @@ export default function App() {
   const [health, setHealth] = useState(null);
   const [focusKey, setFocusKey] = useState(0);
 
-  const { conversations, loading, refresh, create, rename, remove } = useConversations();
+  const { conversations, loading, query, setQuery, refresh, create, rename, remove } = useConversations();
   const chat = useChat(activeId, { onConversationUpdated: refresh });
 
   // Bootstrap: tone presets + health.
@@ -55,13 +55,7 @@ export default function App() {
     }
   }, [chat]);
 
-  const regenerate = useCallback(
-    (tone) => {
-      const lastUser = [...chat.messages].reverse().find((m) => m.role === 'user');
-      if (lastUser) chat.send(lastUser.content, tone);
-    },
-    [chat],
-  );
+  const regenerate = useCallback((tone) => chat.send(null, tone), [chat]);
 
   const onDelete = useCallback(
     async (id) => {
@@ -88,6 +82,8 @@ export default function App() {
       <Sidebar
         conversations={conversations}
         loading={loading}
+        query={query}
+        onQuery={setQuery}
         activeId={activeId}
         onSelect={setActiveId}
         onNew={newChat}
@@ -114,6 +110,8 @@ export default function App() {
           draft={chat.draft}
           status={chat.status}
           error={chat.error}
+          retrying={chat.retrying}
+          onRetry={chat.retry}
           tone={activeTone}
           tones={tones}
           onPickSuggestion={send}

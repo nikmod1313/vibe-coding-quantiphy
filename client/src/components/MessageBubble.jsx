@@ -32,7 +32,7 @@ const RegenerateMenu = ({ tones, onPick }) => {
   );
 };
 
-export const MessageBubble = ({ message, streaming = false, tones = [], toneLabel, onRegenerate }) => {
+export const MessageBubble = ({ message, streaming = false, tones = [], toneLabel, onRegenerate, statusText }) => {
   const isUser = message.role === 'user';
   const [copied, setCopied] = useState(false);
 
@@ -67,7 +67,7 @@ export const MessageBubble = ({ message, streaming = false, tones = [], toneLabe
           {!isUser && message.meta?.latencyMs != null && <span className="chip">{(message.meta.latencyMs / 1000).toFixed(1)}s</span>}
           {!isUser && message.meta?.outputTokens != null && <span className="chip">{message.meta.outputTokens} tok</span>}
           {!isUser && message.meta?.stopped && <span className="chip chip--stopped">stopped</span>}
-          {streaming && <span className="chip">streaming…</span>}
+          {streaming && <span className="chip">{statusText ?? 'streaming…'}</span>}
           <span>{fmtTime(message.createdAt)}</span>
           {!streaming && (
             <div className="msg__actions">

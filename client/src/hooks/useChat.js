@@ -35,10 +35,18 @@ export const useChat = (conversationId, { onConversationUpdated } = {}) => {
     };
   }, [conversationId]);
 
+  const [retrying, setRetrying] = useState(null);
+
+  /**
+   * @param {string|null} content  user prompt, or null to regenerate the last answer
+   * @param {string} [tone]        tone override for this turn
+   */
   const send = useCallback(
     async (content, tone) => {
       if (!conversationId || status !== 'idle') return;
+      const regenerate = content == null;
       setError(null);
+      setRetrying(null);
       setStatus('loading');
 
       const controller = new AbortController();
@@ -46,12 +54,15 @@ export const useChat = (conversationId, { onConversationUpdated } = {}) => {
 
       // Optimistic user bubble; replaced by the persisted one from the server.
       const tempId = `temp-${Date.now()}`;
-      setMessages((prev) => [...prev, { _id: tempId, role: 'user', content, createdAt: new Date().toISOString() }]);
+      if (!regenerate) {
+        setMessages((prev) => [...prev, { _id: tempId, role: 'user', content, createdAt: new Date().toISOString() }]);
+      }
 
       try {
         await streamMessage({
           conversationId,
           content,
+          regenerate,
           tone,
           signal: controller.signal,
           onEvent: (event, data) => {
@@ -64,12 +75,20 @@ export const useChat = (conversationId, { onConversationUpdated } = {}) => {
                 setDraft({ role: 'assistant', content: '', tone: data.tone, meta: { model: data.model } });
                 setConversation((c) => (c ? { ...c, tone: data.tone } : c));
                 break;
+              case 'retry':
+                setRetrying(data.attempt);
+                break;
               case 'token':
+                setRetrying(null);
                 setDraft((d) => (d ? { ...d, content: d.content + data.text } : d));
                 break;
               case 'done':
                 if (data.message) setMessages((prev) => [...prev, data.message]);
                 setDraft(null);
+                onConversationUpdated?.();
+                break;
+              case 'title':
+                setConversation((c) => (c ? { ...c, title: data.title } : c));
                 onConversationUpdated?.();
                 break;
               case 'error':
@@ -91,6 +110,7 @@ export const useChat = (conversationId, { onConversationUpdated } = {}) => {
         setDraft(null);
       } finally {
         setStatus('idle');
+        setRetrying(null);
         abortRef.current = null;
       }
     },
@@ -98,6 +118,7 @@ export const useChat = (conversationId, { onConversationUpdated } = {}) => {
   );
 
   const stop = useCallback(() => abortRef.current?.abort(), []);
+  const retry = useCallback(() => send(null), [send]);
 
   const setTone = useCallback(
     async (tone) => {
@@ -108,5 +129,5 @@ export const useChat = (conversationId, { onConversationUpdated } = {}) => {
     [conversationId],
   );
 
-  return { conversation, messages, draft, status, error, send, stop, setTone, setError };
+  return { conversation, messages, draft, status, error, retrying, send, stop, retry, setTone, setError };
 };

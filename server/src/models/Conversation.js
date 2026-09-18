@@ -33,8 +33,9 @@ const ConversationSchema = new mongoose.Schema(
 ConversationSchema.index({ updatedAt: -1 });
 
 /** Lightweight projection for the sidebar list. */
-ConversationSchema.statics.listSummaries = function () {
+ConversationSchema.statics.listSummaries = function (filter = {}) {
   return this.aggregate([
+    { $match: filter },
     { $sort: { updatedAt: -1 } },
     {
       $project: {

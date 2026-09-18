@@ -7,10 +7,13 @@ import { TONE_IDS } from '../services/tone.js';
 
 export const chatRouter = Router();
 
-const bodySchema = z.object({
-  content: z.string().trim().min(1, 'Message cannot be empty').max(8000),
-  tone: z.enum(TONE_IDS).optional(),
-});
+const bodySchema = z
+  .object({
+    content: z.string().trim().min(1, 'Message cannot be empty').max(8000).optional(),
+    regenerate: z.boolean().optional(),
+    tone: z.enum(TONE_IDS).optional(),
+  })
+  .refine((b) => b.regenerate || b.content, { message: 'content is required', path: ['content'] });
 const idParam = z.object({
   id: z.string().refine(mongoose.isValidObjectId, 'Invalid conversation id'),
 });
@@ -18,7 +21,9 @@ const idParam = z.object({
 /**
  * POST /api/conversations/:id/messages
  * Streams the assistant reply as Server-Sent Events:
- *   event: user_message | start | token | done | error
+ *   event: user_message | start | retry | token | done | title | error
+ * Body: { content } for a new turn, or { regenerate: true, tone? } to
+ * re-answer the last user prompt (used by Retry and regenerate-in-tone).
  * Closing the HTTP connection aborts the upstream model request.
  */
 chatRouter.post(
@@ -54,6 +59,7 @@ chatRouter.post(
       await sendMessage({
         conversationId: req.params.id,
         content: req.body.content,
+        regenerate: req.body.regenerate === true,
         tone: req.body.tone,
         signal: controller.signal,
         emit,

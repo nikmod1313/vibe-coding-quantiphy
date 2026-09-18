@@ -8,6 +8,10 @@ export const validate = (schema, source = 'body') => (req, res, next) => {
   if (!result.success) {
     return next(new HttpError(400, 'Validation failed', result.error.flatten().fieldErrors));
   }
-  req[source] = result.data;
+  try {
+    req[source] = result.data;
+  } catch {
+    Object.defineProperty(req, source, { value: result.data, configurable: true, writable: true });
+  }
   next();
 };

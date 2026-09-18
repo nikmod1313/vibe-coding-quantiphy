@@ -26,7 +26,13 @@ export const createGeminiProvider = () => {
       const stream = await ai.models.generateContentStream({
         model,
         contents: toContents(messages),
-        config: { systemInstruction: system, maxOutputTokens: maxTokens, abortSignal: signal },
+        config: {
+          systemInstruction: system,
+          maxOutputTokens: maxTokens,
+          abortSignal: signal,
+          // Keep latency low for a chat UI; the tone modifier does the heavy lifting.
+          thinkingConfig: { thinkingLevel: 'low' },
+        },
       });
 
       let usage;
@@ -43,11 +49,20 @@ export const createGeminiProvider = () => {
       };
     },
 
+    /**
+     * Utility completions (titles etc.) disable Gemini's hidden "thinking" –
+     * otherwise reasoning tokens consume the small output budget and the
+     * visible answer comes back empty.
+     */
     async complete({ system, prompt, model: overrideModel, maxTokens = 64 }) {
       const res = await ai.models.generateContent({
         model: overrideModel ?? model,
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: { systemInstruction: system, maxOutputTokens: maxTokens },
+        config: {
+          systemInstruction: system,
+          maxOutputTokens: Math.max(maxTokens, 128),
+          thinkingConfig: { thinkingBudget: 0 },
+        },
       });
       return (res.text ?? '').trim();
     },

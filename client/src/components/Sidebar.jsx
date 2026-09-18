@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { PlusIcon, TrashIcon, EditIcon } from './Icons';
+import { PlusIcon, TrashIcon, EditIcon, SearchIcon } from './Icons';
 import { TONE_COLORS } from './ToneToggle';
+
+const plain = (md = '') => md.replace(/[`*_#>]+/g, '').replace(/\s+/g, ' ').trim();
 
 const timeAgo = (iso) => {
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -48,8 +50,8 @@ const Thread = ({ convo, active, onSelect, onRename, onDelete }) => {
         )}
         <div className="thread__meta">
           <span className="dot" style={{ width: 6, height: 6, borderRadius: 3, background: TONE_COLORS[convo.tone], flex: 'none' }} />
-          <span>{timeAgo(convo.updatedAt)}</span>
-          {convo.preview && <span className="thread__preview">· {convo.preview}</span>}
+          <span style={{ whiteSpace: 'nowrap' }}>{timeAgo(convo.updatedAt)}</span>
+          {convo.preview && <span className="thread__preview">· {plain(convo.preview)}</span>}
         </div>
       </div>
       <div className="thread__actions">
@@ -60,7 +62,7 @@ const Thread = ({ convo, active, onSelect, onRename, onDelete }) => {
   );
 };
 
-export const Sidebar = ({ conversations, loading, activeId, onSelect, onNew, onRename, onDelete, health }) => (
+export const Sidebar = ({ conversations, loading, query, onQuery, activeId, onSelect, onNew, onRename, onDelete, health }) => (
   <aside className="sidebar">
     <div className="sidebar__header">
       <div className="brand">
@@ -76,11 +78,16 @@ export const Sidebar = ({ conversations, loading, activeId, onSelect, onNew, onR
       <PlusIcon /> New chat <kbd>⌘K</kbd>
     </button>
 
-    <div className="sidebar__label">History</div>
+    <label className="search">
+      <SearchIcon />
+      <input type="search" placeholder="Search conversations" value={query} onChange={(e) => onQuery(e.target.value)} maxLength={100} />
+    </label>
+
+    <div className="sidebar__label">{query ? 'Results' : 'History'}</div>
     <div className="sidebar__list">
       {loading && [1, 2, 3].map((i) => <div key={i} className="skeleton" />)}
       {!loading && conversations.length === 0 && (
-        <div className="sidebar__empty">No conversations yet.<br />Start one above.</div>
+        <div className="sidebar__empty">{query ? 'No matches.' : <>No conversations yet.<br />Start one above.</>}</div>
       )}
       {conversations.map((c) => (
         <Thread key={c._id} convo={c} active={c._id === activeId} onSelect={onSelect} onRename={onRename} onDelete={onDelete} />

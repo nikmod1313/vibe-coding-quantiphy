@@ -24,14 +24,25 @@ conversationsRouter.get('/tones', (req, res) => {
   res.json({ tones: listTones(), default: DEFAULT_TONE });
 });
 
-// GET /api/conversations – sidebar list
-conversationsRouter.get('/conversations', async (req, res, next) => {
-  try {
-    res.json({ conversations: await Conversation.listSummaries() });
-  } catch (err) {
-    next(err);
-  }
-});
+// GET /api/conversations?q=term – sidebar list, optionally filtered.
+// The query is escaped before being used in a regex so user input can never
+// alter the pattern (ReDoS / NoSQL injection safe); length is capped by zod.
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+conversationsRouter.get(
+  '/conversations',
+  validate(z.object({ q: z.string().trim().max(100).optional() }), 'query'),
+  async (req, res, next) => {
+    try {
+      const { q } = req.query;
+      const filter = q
+        ? { $or: [{ title: { $regex: escapeRegex(q), $options: 'i' } }, { 'messages.content': { $regex: escapeRegex(q), $options: 'i' } }] }
+        : {};
+      res.json({ conversations: await Conversation.listSummaries(filter) });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 // POST /api/conversations – create a thread
 conversationsRouter.post(

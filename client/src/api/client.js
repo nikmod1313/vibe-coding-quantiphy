@@ -19,7 +19,7 @@ const request = async (path, options = {}) => {
 export const api = {
   health: () => request('/health'),
   tones: () => request('/tones'),
-  listConversations: () => request('/conversations').then((d) => d.conversations),
+  listConversations: (q) => request(`/conversations${q ? `?q=${encodeURIComponent(q)}` : ''}`).then((d) => d.conversations),
   createConversation: (tone) => request('/conversations', { method: 'POST', body: { tone } }).then((d) => d.conversation),
   getConversation: (id) => request(`/conversations/${id}`).then((d) => d.conversation),
   updateConversation: (id, patch) => request(`/conversations/${id}`, { method: 'PATCH', body: patch }).then((d) => d.conversation),
@@ -37,11 +37,11 @@ export const api = {
  * @param {AbortSignal} [args.signal]
  * @param {(event: string, data: any) => void} args.onEvent
  */
-export const streamMessage = async ({ conversationId, content, tone, signal, onEvent }) => {
+export const streamMessage = async ({ conversationId, content, regenerate, tone, signal, onEvent }) => {
   const res = await fetch(`${BASE}/conversations/${conversationId}/messages`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
-    body: JSON.stringify({ content, tone }),
+    body: JSON.stringify(regenerate ? { regenerate: true, tone } : { content, tone }),
     signal,
   });
   if (!res.ok || !res.body) {

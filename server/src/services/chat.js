@@ -3,6 +3,7 @@ import { HttpError } from '../middleware/errorHandler.js';
 import { getProvider } from './ai/index.js';
 import { buildSystemPrompt, MAX_CONTEXT_MESSAGES } from './prompt.js';
 import { isTone } from './tone.js';
+import { maybeGenerateTitle } from './title.js';
 
 /**
  * Core chat business logic.
@@ -13,12 +14,38 @@ import { isTone } from './tone.js';
  *
  * @param {object} args
  * @param {string} args.conversationId
- * @param {string} args.content         user prompt
+ * @param {string} [args.content]       user prompt (omitted when regenerating)
+ * @param {boolean} [args.regenerate]   re-answer the last user prompt without persisting a new user turn
  * @param {string} [args.tone]          overrides the conversation's active tone for this turn
  * @param {AbortSignal} args.signal     aborts the upstream model request
  * @param {(event: string, data: object) => void} args.emit
  */
-export const sendMessage = async ({ conversationId, content, tone, signal, emit }) => {
+const RETRYABLE = new Set([429, 500, 502, 503, 529]);
+const MAX_ATTEMPTS = 3;
+
+/** Turns nested provider error payloads into a short, user-facing message. */
+export const humanizeProviderError = (err) => {
+  const status = err?.status ?? err?.code;
+  if (status === 429) return 'Rate limit reached. Please wait a moment and try again.';
+  if (status === 503 || status === 529) return 'The model is under heavy load right now. Please try again in a few seconds.';
+  if (status === 401 || status === 403) return 'The AI provider rejected the API key. Check server configuration.';
+  if (status === 404) return 'The configured model is not available for this API key.';
+  let msg = err?.message ?? 'Generation failed';
+  // Provider SDKs sometimes stringify the whole JSON error body.
+  for (let i = 0; i < 3; i += 1) {
+    try {
+      const parsed = JSON.parse(msg);
+      msg = parsed?.error?.message ?? parsed?.message ?? msg;
+    } catch {
+      break;
+    }
+  }
+  return msg.slice(0, 300);
+};
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+export const sendMessage = async ({ conversationId, content, regenerate = false, tone, signal, emit }) => {
   const convo = await Conversation.findById(conversationId);
   if (!convo) throw new HttpError(404, 'Conversation not found');
 
@@ -26,13 +53,20 @@ export const sendMessage = async ({ conversationId, content, tone, signal, emit 
   const activeTone = convo.tone;
 
   // 1. Persist the user turn immediately so it survives a failed generation.
-  convo.messages.push({ role: 'user', content });
-  await convo.save();
-  const userMessage = convo.messages.at(-1);
-  emit('user_message', { message: userMessage });
+  if (!regenerate) {
+    convo.messages.push({ role: 'user', content });
+    await convo.save();
+    emit('user_message', { message: convo.messages.at(-1) });
+  }
 
-  // 2. Build the model request: bounded history + tone-aware system prompt.
-  const history = convo.messages.slice(-MAX_CONTEXT_MESSAGES).map(({ role, content }) => ({ role, content }));
+  // 2. Build the model request: bounded history (up to the last user turn so the
+  //    model never sees two consecutive assistant turns) + tone-aware system prompt.
+  const lastUserIdx = convo.messages.findLastIndex((m) => m.role === 'user');
+  if (lastUserIdx === -1) throw new HttpError(400, 'Nothing to regenerate');
+  const history = convo.messages
+    .slice(0, lastUserIdx + 1)
+    .slice(-MAX_CONTEXT_MESSAGES)
+    .map(({ role, content }) => ({ role, content }));
   const provider = getProvider();
   const system = buildSystemPrompt(activeTone);
 
@@ -44,23 +78,34 @@ export const sendMessage = async ({ conversationId, content, tone, signal, emit 
   let usage = {};
   let stopped = false;
 
-  try {
-    const gen = provider.stream({ system, messages: history, signal });
-    // Manual iteration so we can capture the generator's return value (usage).
-    for (;;) {
-      const { value, done } = await gen.next();
-      if (done) {
-        usage = value ?? {};
+  // Transient provider errors (429/5xx) are retried with backoff, but only
+  // while nothing has been streamed yet – we never replay partial output.
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const gen = provider.stream({ system, messages: history, signal, maxTokens: 8192 });
+      // Manual iteration so we can capture the generator's return value (usage).
+      for (;;) {
+        const { value, done } = await gen.next();
+        if (done) {
+          usage = value ?? {};
+          break;
+        }
+        text += value;
+        emit('token', { text: value });
+      }
+      break;
+    } catch (err) {
+      if (signal?.aborted || err?.name === 'AbortError') {
+        stopped = true;
         break;
       }
-      text += value;
-      emit('token', { text: value });
-    }
-  } catch (err) {
-    if (signal?.aborted || err?.name === 'AbortError') {
-      stopped = true;
-    } else {
-      throw err;
+      const status = err?.status ?? err?.code;
+      if (!text && RETRYABLE.has(status) && attempt < MAX_ATTEMPTS) {
+        emit('retry', { attempt, status });
+        await sleep(600 * attempt);
+        continue;
+      }
+      throw Object.assign(new Error(humanizeProviderError(err)), { status: typeof status === 'number' ? status : 502 });
     }
   }
 
@@ -86,4 +131,11 @@ export const sendMessage = async ({ conversationId, content, tone, signal, emit 
   await convo.save();
 
   emit('done', { stopped, message: convo.messages.at(-1) });
+
+  // 5. Fire-and-forget: name the thread after its first exchange.
+  if (!convo.titleGenerated) {
+    await maybeGenerateTitle(convo._id);
+    const updated = await Conversation.findById(convo._id).select('title');
+    emit('title', { conversationId: String(convo._id), title: updated?.title });
+  }
 };
