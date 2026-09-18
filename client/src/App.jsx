@@ -6,6 +6,7 @@ import { Sidebar } from './components/Sidebar';
 import { ToneToggle } from './components/ToneToggle';
 import { ChatView } from './components/ChatView';
 import { Composer } from './components/Composer';
+import { DownloadIcon } from './components/Icons';
 
 export default function App() {
   const [tones, setTones] = useState([]);
@@ -98,12 +99,19 @@ export default function App() {
             {title}
             <small>{chat.messages.length ? `${chat.messages.length} messages` : 'Responses adapt to the selected tone'}</small>
           </div>
-          <ToneToggle
-            tones={tones}
-            value={activeTone}
-            disabled={chat.status !== 'idle'}
-            onChange={(t) => (activeId ? chat.setTone(t) : setDefaultTone(t))}
-          />
+          <div className="topbar__right">
+            <ToneToggle
+              tones={tones}
+              value={activeTone}
+              disabled={chat.status !== 'idle'}
+              onChange={(t) => (activeId ? chat.setTone(t) : setDefaultTone(t))}
+            />
+            {activeId && chat.messages.length > 0 && (
+              <a className="icon-btn icon-btn--lg" title="Export as Markdown" href={`/api/conversations/${activeId}/export`} download>
+                <DownloadIcon />
+              </a>
+            )}
+          </div>
         </header>
 
         <ChatView

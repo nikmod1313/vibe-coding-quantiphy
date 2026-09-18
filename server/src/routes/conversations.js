@@ -5,6 +5,7 @@ import { Conversation } from '../models/Conversation.js';
 import { HttpError } from '../middleware/errorHandler.js';
 import { validate } from '../middleware/validate.js';
 import { TONE_IDS, DEFAULT_TONE, listTones } from '../services/tone.js';
+import { conversationToMarkdown, exportFilename } from '../services/export.js';
 
 export const conversationsRouter = Router();
 
@@ -62,6 +63,18 @@ conversationsRouter.post(
 conversationsRouter.get('/conversations/:id', validate(idParam, 'params'), async (req, res, next) => {
   try {
     res.json({ conversation: await loadConversation(req.params.id) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/conversations/:id/export – Markdown transcript download
+conversationsRouter.get('/conversations/:id/export', validate(idParam, 'params'), async (req, res, next) => {
+  try {
+    const convo = await loadConversation(req.params.id);
+    res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${exportFilename(convo)}"`);
+    res.send(conversationToMarkdown(convo));
   } catch (err) {
     next(err);
   }

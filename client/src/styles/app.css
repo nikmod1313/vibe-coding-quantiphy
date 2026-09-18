@@ -139,6 +139,8 @@ a { color: var(--accent-2); }
   -webkit-backdrop-filter: blur(16px);
 }
 .topbar__title { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.topbar__right { display: flex; align-items: center; gap: 10px; flex: none; }
+.icon-btn--lg { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--border); background: var(--glass); color: var(--text-1); text-decoration: none; }
 .topbar__title small { display: block; font-weight: 400; font-size: 12px; color: var(--text-2); }
 
 /* ---------- tone toggle ---------- */
