@@ -27,6 +27,7 @@ Extras that go beyond the brief:
 - **Context-window management** — history is trimmed to a token budget (newest first, latest prompt always kept, never starting on an assistant turn); each reply records how many turns were sent and how many were trimmed (`ctx` chip).
 - **Private by default** — a signed anonymous session cookie scopes every thread to the browser that created it; no login needed, no cross-visitor leakage.
 - **Resilience** — transient provider errors (429/5xx) are retried with backoff *before* any token is streamed; friendly error bubble with Retry; partial replies are kept when the user stops generation.
+- **Quota-aware model fallback** — Gemini free tier is 20 requests/day *per model*; when the primary model's daily quota is exhausted the adapter moves to the next model in `GEMINI_FALLBACK_MODELS` and marks the exhausted one (visible in `/api/health`). Daily-quota errors are never retried (retrying only burns quota). Titles are heuristic by default so a thread costs exactly one request.
 - **Reader-friendly scrolling** — auto-follow pauses when you scroll up; a "Latest" pill jumps back.
 - **Keyboard-first** — `Enter` send, `Shift+Enter` newline, `⌘K` new chat, `Esc` stop.
 - **Live health** — sidebar footer shows provider, model and DB status from `/api/health`.
@@ -120,7 +121,11 @@ Switch providers by editing `server/.env`:
 AI_PROVIDER=gemini        # gemini | anthropic | openai
 GEMINI_API_KEY=...
 GEMINI_MODEL=gemini-3.6-flash
+GEMINI_FALLBACK_MODELS=gemini-3.7-flash,gemini-3.5-flash,gemini-3.1-flash-lite
+AUTO_TITLE=heuristic      # or "ai" for model-generated titles (+1 request per thread)
 ```
+
+> Free-tier note: each Gemini model allows ~20 requests/day. With heuristic titles a conversation turn costs one request; the fallback chain gives you 4× that headroom.
 
 Tests (no DB or key required — DB and provider are mocked):
 

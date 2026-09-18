@@ -29,6 +29,7 @@ const MAX_ATTEMPTS = 3;
 /** Turns nested provider error payloads into a short, user-facing message. */
 export const humanizeProviderError = (err) => {
   const status = err?.status ?? err?.code;
+  if (err?.noRetry) return err.message;
   if (status === 429) return 'Rate limit reached. Please wait a moment and try again.';
   if (status === 503 || status === 529) return 'The model is under heavy load right now. Please try again in a few seconds.';
   if (status === 401 || status === 403) return 'The AI provider rejected the API key. Check server configuration.';
@@ -119,9 +120,10 @@ export const sendMessage = async ({ conversationId, sessionId, content, regenera
         break;
       }
       const status = err?.status ?? err?.code;
-      if (!text && RETRYABLE.has(status) && attempt < MAX_ATTEMPTS) {
+      if (!text && !err?.noRetry && RETRYABLE.has(status) && attempt < MAX_ATTEMPTS) {
         emit('retry', { attempt, status });
-        await sleep(600 * attempt);
+        // Rate limits need real breathing room; other transient errors recover fast.
+        await sleep((status === 429 ? 2500 : 600) * attempt);
         continue;
       }
       throw Object.assign(new Error(humanizeProviderError(err)), { status: typeof status === 'number' ? status : 502 });

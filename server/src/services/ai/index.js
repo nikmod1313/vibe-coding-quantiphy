@@ -29,7 +29,7 @@ export const getProvider = () => {
 export const providerStatus = () => {
   try {
     const p = getProvider();
-    return { provider: p.name, model: p.model, ready: true };
+    return { provider: p.name, model: p.model, ready: true, ...(p.status ? p.status() : {}) };
   } catch (err) {
     return { provider: env.ai.provider, ready: false, error: err.message };
   }

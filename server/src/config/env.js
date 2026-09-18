@@ -34,7 +34,12 @@ export const env = {
     gemini: {
       apiKey: process.env.GEMINI_API_KEY ?? '',
       model: process.env.GEMINI_MODEL ?? 'gemini-3.6-flash',
+      // Comma-separated; tried in order when the primary's daily quota is gone.
+      fallbackModels: (process.env.GEMINI_FALLBACK_MODELS ?? 'gemini-3.7-flash,gemini-3.5-flash,gemini-3.1-flash-lite')
+        .split(',').map((m) => m.trim()).filter(Boolean),
     },
+    // "heuristic" (default, no API call) or "ai" (one extra model request per new thread)
+    autoTitle: (process.env.AUTO_TITLE ?? 'heuristic').toLowerCase(),
     anthropic: {
       apiKey: process.env.ANTHROPIC_API_KEY ?? '',
       model: process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-5',
