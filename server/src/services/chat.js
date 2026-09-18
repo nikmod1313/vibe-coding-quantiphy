@@ -14,6 +14,7 @@ import { maybeGenerateTitle } from './title.js';
  *
  * @param {object} args
  * @param {string} args.conversationId
+ * @param {string} args.sessionId       owner scope – threads from other sessions are invisible
  * @param {string} [args.content]       user prompt (omitted when regenerating)
  * @param {boolean} [args.regenerate]   re-answer the last user prompt without persisting a new user turn
  * @param {string} [args.editMessageId] rewrite this earlier user message: the thread is truncated from it and re-run
@@ -46,8 +47,8 @@ export const humanizeProviderError = (err) => {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-export const sendMessage = async ({ conversationId, content, regenerate = false, editMessageId, tone, signal, emit }) => {
-  const convo = await Conversation.findById(conversationId);
+export const sendMessage = async ({ conversationId, sessionId, content, regenerate = false, editMessageId, tone, signal, emit }) => {
+  const convo = await Conversation.findOne({ _id: conversationId, sessionId });
   if (!convo) throw new HttpError(404, 'Conversation not found');
 
   if (tone && isTone(tone) && tone !== convo.tone) convo.tone = tone;

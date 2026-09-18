@@ -63,6 +63,7 @@ test('search query is regex-escaped before hitting the database', async () => {
   assert.equal(res.status, 200);
   const filter = spy.mock.calls[0].arguments[0];
   assert.equal(filter.$or[0].title.$regex, '\\.\\*\\(');
+  assert.match(filter.sessionId, /^[a-f0-9]{32}$/);
   spy.mock.restore();
 });
 
@@ -77,4 +78,23 @@ test('edit & resend rejects malformed message ids and exclusive flags', async ()
   assert.equal(res.status, 400);
   res = await json(`/api/conversations/${id}/messages`, { method: 'POST', body: JSON.stringify({ regenerate: true, editMessageId: id }) });
   assert.equal(res.status, 400);
+});
+
+test('issues a signed HttpOnly session cookie and accepts it back', async () => {
+  const first = await json('/api/tones');
+  const cookie = first.headers.get('set-cookie');
+  assert.match(cookie, /^vc_sid=[a-f0-9]{32}\.[A-Za-z0-9_-]+; Path=\/; Max-Age=\d+; HttpOnly; SameSite=Lax/);
+  const raw = cookie.split(';')[0].split('=')[1];
+  const again = await fetch(`${base}/api/tones`, { headers: { Cookie: `vc_sid=${raw}` } });
+  assert.equal(again.headers.get('set-cookie'), null, 'valid cookie is not re-issued');
+  const forged = await fetch(`${base}/api/tones`, { headers: { Cookie: `vc_sid=${raw.split('.')[0]}.forged` } });
+  assert.ok(forged.headers.get('set-cookie'), 'forged signature is replaced');
+});
+
+test('conversations are invisible across sessions', async () => {
+  const spy = mock.method(Conversation, 'findOne', async () => null);
+  const res = await json('/api/conversations/6aacb714e5e82b58a4a8c5cc');
+  assert.equal(res.status, 404);
+  assert.match(spy.mock.calls[0].arguments[0].sessionId, /^[a-f0-9]{32}$/);
+  spy.mock.restore();
 });

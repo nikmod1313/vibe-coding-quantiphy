@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import crypto from 'node:crypto';
 
 /**
  * Centralised, validated environment config.
@@ -19,6 +20,13 @@ const required = (key, fallback) => {
  */
 export const env = {
   port: Number(process.env.PORT ?? 3001),
+  isProduction: process.env.NODE_ENV === 'production',
+  // Signs the anonymous session cookie. A random secret per boot is fine for
+  // local demos (sessions reset on restart); set SESSION_SECRET in production.
+  sessionSecret: process.env.SESSION_SECRET || (() => {
+    if (process.env.NODE_ENV === 'production') throw new Error('SESSION_SECRET is required in production');
+    return crypto.randomBytes(32).toString('hex');
+  })(),
   clientOrigin: process.env.CLIENT_ORIGIN ?? 'http://localhost:5173',
   mongoUri: required('MONGODB_URI', 'mongodb://127.0.0.1:27017/vibe-chat'),
   ai: {

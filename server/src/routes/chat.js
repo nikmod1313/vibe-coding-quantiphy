@@ -61,6 +61,7 @@ chatRouter.post(
     try {
       await sendMessage({
         conversationId: req.params.id,
+        sessionId: req.sessionId,
         content: req.body.content,
         regenerate: req.body.regenerate === true,
         editMessageId: req.body.editMessageId,

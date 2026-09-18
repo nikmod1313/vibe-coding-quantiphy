@@ -22,6 +22,9 @@ const MessageSchema = new mongoose.Schema(
 
 const ConversationSchema = new mongoose.Schema(
   {
+    // Owner: anonymous session id (see middleware/session.js). Every query is
+    // scoped by it so visitors can never read or mutate each other's threads.
+    sessionId: { type: String, required: true, index: true },
     title: { type: String, default: 'New conversation', trim: true, maxlength: 120 },
     tone: { type: String, enum: TONE_IDS, default: DEFAULT_TONE },
     titleGenerated: { type: Boolean, default: false },
@@ -30,7 +33,7 @@ const ConversationSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-ConversationSchema.index({ updatedAt: -1 });
+ConversationSchema.index({ sessionId: 1, updatedAt: -1 });
 
 /** Lightweight projection for the sidebar list. */
 ConversationSchema.statics.listSummaries = function (filter = {}) {

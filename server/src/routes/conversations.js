@@ -14,8 +14,9 @@ const idParam = z.object({
   id: z.string().refine(mongoose.isValidObjectId, 'Invalid conversation id'),
 });
 
-const loadConversation = async (id) => {
-  const convo = await Conversation.findById(id);
+/** Loads a thread only if it belongs to the caller's session (404 otherwise – never reveal existence). */
+const loadConversation = async (id, sessionId) => {
+  const convo = await Conversation.findOne({ _id: id, sessionId });
   if (!convo) throw new HttpError(404, 'Conversation not found');
   return convo;
 };
@@ -35,9 +36,13 @@ conversationsRouter.get(
   async (req, res, next) => {
     try {
       const { q } = req.query;
-      const filter = q
-        ? { $or: [{ title: { $regex: escapeRegex(q), $options: 'i' } }, { 'messages.content': { $regex: escapeRegex(q), $options: 'i' } }] }
-        : {};
+      const filter = { sessionId: req.sessionId };
+      if (q) {
+        filter.$or = [
+          { title: { $regex: escapeRegex(q), $options: 'i' } },
+          { 'messages.content': { $regex: escapeRegex(q), $options: 'i' } },
+        ];
+      }
       res.json({ conversations: await Conversation.listSummaries(filter) });
     } catch (err) {
       next(err);
@@ -51,7 +56,7 @@ conversationsRouter.post(
   validate(z.object({ tone: toneSchema.optional() })),
   async (req, res, next) => {
     try {
-      const convo = await Conversation.create({ tone: req.body.tone ?? DEFAULT_TONE });
+      const convo = await Conversation.create({ sessionId: req.sessionId, tone: req.body.tone ?? DEFAULT_TONE });
       res.status(201).json({ conversation: convo });
     } catch (err) {
       next(err);
@@ -62,7 +67,7 @@ conversationsRouter.post(
 // GET /api/conversations/:id – full thread with messages
 conversationsRouter.get('/conversations/:id', validate(idParam, 'params'), async (req, res, next) => {
   try {
-    res.json({ conversation: await loadConversation(req.params.id) });
+    res.json({ conversation: await loadConversation(req.params.id, req.sessionId) });
   } catch (err) {
     next(err);
   }
@@ -71,7 +76,7 @@ conversationsRouter.get('/conversations/:id', validate(idParam, 'params'), async
 // GET /api/conversations/:id/export – Markdown transcript download
 conversationsRouter.get('/conversations/:id/export', validate(idParam, 'params'), async (req, res, next) => {
   try {
-    const convo = await loadConversation(req.params.id);
+    const convo = await loadConversation(req.params.id, req.sessionId);
     res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${exportFilename(convo)}"`);
     res.send(conversationToMarkdown(convo));
@@ -91,7 +96,7 @@ conversationsRouter.patch(
   ),
   async (req, res, next) => {
     try {
-      const convo = await loadConversation(req.params.id);
+      const convo = await loadConversation(req.params.id, req.sessionId);
       if (req.body.title !== undefined) {
         convo.title = req.body.title;
         convo.titleGenerated = true; // user-set titles are never overwritten by auto-title
@@ -108,7 +113,7 @@ conversationsRouter.patch(
 // DELETE /api/conversations/:id
 conversationsRouter.delete('/conversations/:id', validate(idParam, 'params'), async (req, res, next) => {
   try {
-    const result = await Conversation.findByIdAndDelete(req.params.id);
+    const result = await Conversation.findOneAndDelete({ _id: req.params.id, sessionId: req.sessionId });
     if (!result) throw new HttpError(404, 'Conversation not found');
     res.status(204).end();
   } catch (err) {

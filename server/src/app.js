@@ -8,6 +8,7 @@ import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { conversationsRouter } from './routes/conversations.js';
 import { chatRouter } from './routes/chat.js';
 import { providerStatus } from './services/ai/index.js';
+import { session } from './middleware/session.js';
 
 export const createApp = () => {
   const app = express();
@@ -15,7 +16,7 @@ export const createApp = () => {
   // --- Security baseline -------------------------------------------------
   app.disable('x-powered-by');
   app.use(helmet({ contentSecurityPolicy: false })); // API only; CSP belongs to the client host
-  app.use(cors({ origin: env.clientOrigin, methods: ['GET', 'POST', 'PATCH', 'DELETE'] }));
+  app.use(cors({ origin: env.clientOrigin, credentials: true, methods: ['GET', 'POST', 'PATCH', 'DELETE'] }));
   app.use(express.json({ limit: '256kb', strict: true }));
 
   // Generous global limit; tighter one on generation which costs real money.
@@ -35,6 +36,7 @@ export const createApp = () => {
     });
   });
 
+  app.use('/api', session);
   app.use('/api', conversationsRouter);
   app.use('/api', chatRouter);
 
