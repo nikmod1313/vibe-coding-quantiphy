@@ -25,7 +25,7 @@ export const env = {
     provider: (process.env.AI_PROVIDER ?? 'gemini').toLowerCase(),
     gemini: {
       apiKey: process.env.GEMINI_API_KEY ?? '',
-      model: process.env.GEMINI_MODEL ?? 'gemini-2.5-flash',
+      model: process.env.GEMINI_MODEL ?? 'gemini-3.6-flash',
     },
     anthropic: {
       apiKey: process.env.ANTHROPIC_API_KEY ?? '',

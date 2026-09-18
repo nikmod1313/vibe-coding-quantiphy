@@ -39,8 +39,13 @@ chatRouter.post(
       res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
     };
 
+    // Abort the upstream model call if the client goes away mid-stream.
+    // Note: listen on `res`, not `req` – req 'close' fires as soon as the
+    // request body has been consumed on modern Node.
     const controller = new AbortController();
-    req.on('close', () => controller.abort());
+    res.on('close', () => {
+      if (!res.writableFinished) controller.abort();
+    });
 
     // Heartbeat keeps proxies from closing an idle stream while the model thinks.
     const heartbeat = setInterval(() => !res.writableEnded && res.write(': ping\n\n'), 15000);
