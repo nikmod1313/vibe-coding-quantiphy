@@ -30,8 +30,9 @@ export const createGeminiProvider = () => {
           systemInstruction: system,
           maxOutputTokens: maxTokens,
           abortSignal: signal,
-          // Keep latency low for a chat UI; the tone modifier does the heavy lifting.
-          thinkingConfig: { thinkingLevel: 'low' },
+          // Chat is latency-sensitive: disable hidden reasoning so the first
+          // token arrives fast. The tone modifier does the styling work.
+          thinkingConfig: { thinkingBudget: 0 },
         },
       });
 
