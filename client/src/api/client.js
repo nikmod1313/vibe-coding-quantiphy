@@ -23,6 +23,7 @@ export const api = {
   createConversation: (tone) => request('/conversations', { method: 'POST', body: { tone } }).then((d) => d.conversation),
   getConversation: (id) => request(`/conversations/${id}`).then((d) => d.conversation),
   updateConversation: (id, patch) => request(`/conversations/${id}`, { method: 'PATCH', body: patch }).then((d) => d.conversation),
+  dailyInsights: (refresh) => request(`/insights/daily${refresh ? '?refresh=1' : ''}`),
   deleteConversation: (id) => request(`/conversations/${id}`, { method: 'DELETE' }),
 };
 

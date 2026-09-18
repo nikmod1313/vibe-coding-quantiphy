@@ -108,17 +108,37 @@ export const createGeminiProvider = () => {
      * visible answer comes back empty.
      */
     async complete({ system, prompt, model: overrideModel, maxTokens = 64 }) {
-      const useModel = overrideModel ?? candidates()[0] ?? model;
-      const res = await ai.models.generateContent({
-        model: useModel,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: {
-          systemInstruction: system,
-          maxOutputTokens: Math.max(maxTokens, 128),
-          thinkingConfig: { thinkingBudget: 0 },
-        },
-      }).catch((err) => { throw decorate(err, useModel); });
-      return (res.text ?? '').trim();
+      const models = overrideModel ? [overrideModel] : candidates();
+      if (!models.length) throw Object.assign(new Error('All configured Gemini models have exhausted their daily quota.'), { status: 429, noRetry: true });
+
+      let lastErr;
+      for (const [i, useModel] of models.entries()) {
+        // Short retry for transient 5xx/429-per-minute; quota exhaustion moves to the next model.
+        for (let attempt = 1; attempt <= 3; attempt += 1) {
+          try {
+            const res = await ai.models.generateContent({
+              model: useModel,
+              contents: [{ role: 'user', parts: [{ text: prompt }] }],
+              config: {
+                systemInstruction: system,
+                maxOutputTokens: Math.max(maxTokens, 128),
+                thinkingConfig: { thinkingBudget: 0 },
+              },
+            });
+            return (res.text ?? '').trim();
+          } catch (err) {
+            lastErr = decorate(err, useModel);
+            if (lastErr.noRetry) {
+              exhausted.add(useModel);
+              if (i < models.length - 1) console.warn(`[gemini] ${useModel} quota exhausted – falling back to ${models[i + 1]}`);
+              break;
+            }
+            if (![429, 500, 502, 503, 529].includes(lastErr.status) || attempt === 3) throw lastErr;
+            await new Promise((r) => setTimeout(r, (lastErr.status === 429 ? 2500 : 800) * attempt));
+          }
+        }
+      }
+      throw lastErr;
     },
 
     /** For /api/health – lets a judge see the fallback chain state without spending a request. */

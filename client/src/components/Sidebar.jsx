@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { PlusIcon, TrashIcon, EditIcon, SearchIcon } from './Icons';
+import { PlusIcon, TrashIcon, EditIcon, SearchIcon, SparkIcon } from './Icons';
 import { TONE_COLORS } from './ToneToggle';
 
 const plain = (md = '') => md.replace(/[`*_#>]+/g, '').replace(/\s+/g, ' ').trim();
@@ -62,7 +62,7 @@ const Thread = ({ convo, active, onSelect, onRename, onDelete }) => {
   );
 };
 
-export const Sidebar = ({ conversations, loading, query, onQuery, activeId, onSelect, onNew, onRename, onDelete, health }) => (
+export const Sidebar = ({ conversations, loading, query, onQuery, activeId, onSelect, onNew, onRename, onDelete, onInsights, health }) => (
   <aside className="sidebar">
     <div className="sidebar__header">
       <div className="brand">
@@ -76,6 +76,9 @@ export const Sidebar = ({ conversations, loading, query, onQuery, activeId, onSe
 
     <button className="btn-new" onClick={onNew}>
       <PlusIcon /> New chat <kbd>⌘K</kbd>
+    </button>
+    <button className="btn-insights" onClick={onInsights} disabled={!conversations.length && !query}>
+      <SparkIcon /> Daily summary <span>flashcards from recent chats</span>
     </button>
 
     <label className="search">

@@ -7,6 +7,7 @@ import { env } from './config/env.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { conversationsRouter } from './routes/conversations.js';
 import { chatRouter } from './routes/chat.js';
+import { insightsRouter } from './routes/insights.js';
 import { providerStatus } from './services/ai/index.js';
 import { session } from './middleware/session.js';
 
@@ -39,6 +40,7 @@ export const createApp = () => {
   app.use('/api', session);
   app.use('/api', conversationsRouter);
   app.use('/api', chatRouter);
+  app.use('/api', insightsRouter);
 
   app.use(notFound);
   app.use(errorHandler);

@@ -7,6 +7,7 @@ import { ToneToggle } from './components/ToneToggle';
 import { ChatView } from './components/ChatView';
 import { Composer } from './components/Composer';
 import { DownloadIcon } from './components/Icons';
+import { InsightsPanel } from './components/InsightsPanel';
 
 export default function App() {
   const [tones, setTones] = useState([]);
@@ -14,6 +15,7 @@ export default function App() {
   const [activeId, setActiveId] = useState(null);
   const [health, setHealth] = useState(null);
   const [focusKey, setFocusKey] = useState(0);
+  const [showInsights, setShowInsights] = useState(false);
 
   const { conversations, loading, query, setQuery, refresh, create, rename, remove } = useConversations();
   const chat = useChat(activeId, { onConversationUpdated: refresh });
@@ -91,6 +93,7 @@ export default function App() {
         onNew={newChat}
         onRename={rename}
         onDelete={onDelete}
+        onInsights={() => setShowInsights(true)}
         health={health}
       />
       <main className="main">
@@ -131,6 +134,7 @@ export default function App() {
 
         <Composer onSend={send} onStop={chat.stop} status={chat.status} focusKey={focusKey} />
       </main>
+      {showInsights && <InsightsPanel onClose={() => setShowInsights(false)} onOpenConversation={setActiveId} />}
     </div>
   );
 }

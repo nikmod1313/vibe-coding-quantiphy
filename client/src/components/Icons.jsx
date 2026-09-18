@@ -11,3 +11,4 @@ export const CheckIcon = () => (<svg {...base} width={14} height={14}><path d="M
 export const SearchIcon = () => (<svg {...base} width={14} height={14}><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg>);
 export const ArrowDownIcon = () => (<svg {...base} width={14} height={14}><path d="M12 5v14M5 12l7 7 7-7" /></svg>);
 export const DownloadIcon = () => (<svg {...base} width={15} height={15}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>);
+export const SparkIcon = () => (<svg {...base} width={15} height={15}><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8L19 16z" /></svg>);
