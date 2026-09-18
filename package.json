@@ -1,0 +1,15 @@
+{
+  "name": "vibe-chat",
+  "private": true,
+  "version": "1.0.0",
+  "description": "AI Chat Assistant with real-time streaming, tone control and MongoDB persistence",
+  "workspaces": ["server", "client"],
+  "scripts": {
+    "dev": "concurrently -n server,client -c blue,magenta \"npm run dev -w server\" \"npm run dev -w client\"",
+    "start": "npm run start -w server",
+    "build": "npm run build -w client"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
