@@ -4,6 +4,8 @@ import mongoose from 'mongoose';
 import { env } from './config/env.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { conversationsRouter } from './routes/conversations.js';
+import { chatRouter } from './routes/chat.js';
+import { providerStatus } from './services/ai/index.js';
 
 export const createApp = () => {
   const app = express();
@@ -14,13 +16,14 @@ export const createApp = () => {
   app.get('/api/health', (req, res) => {
     res.json({
       status: 'ok',
-      provider: env.ai.provider,
+      ai: providerStatus(),
       db: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
       uptime: Math.round(process.uptime()),
     });
   });
 
   app.use('/api', conversationsRouter);
+  app.use('/api', chatRouter);
 
   app.use(notFound);
   app.use(errorHandler);
