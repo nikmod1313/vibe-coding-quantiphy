@@ -1,7 +1,8 @@
 import { Conversation } from '../models/Conversation.js';
 import { HttpError } from '../middleware/errorHandler.js';
 import { getProvider } from './ai/index.js';
-import { buildSystemPrompt, MAX_CONTEXT_MESSAGES } from './prompt.js';
+import { buildSystemPrompt } from './prompt.js';
+import { selectContext, estimateTokens } from './context.js';
 import { isTone } from './tone.js';
 import { maybeGenerateTitle } from './title.js';
 
@@ -70,18 +71,25 @@ export const sendMessage = async ({ conversationId, sessionId, content, regenera
     emit('user_message', { message: convo.messages.at(-1) });
   }
 
-  // 2. Build the model request: bounded history (up to the last user turn so the
-  //    model never sees two consecutive assistant turns) + tone-aware system prompt.
+  // 2. Build the model request: history up to the last user turn (so the model
+  //    never sees two consecutive assistant turns), trimmed to the token budget,
+  //    plus the tone-aware system prompt.
   const lastUserIdx = convo.messages.findLastIndex((m) => m.role === 'user');
   if (lastUserIdx === -1) throw new HttpError(400, 'Nothing to regenerate');
-  const history = convo.messages
-    .slice(0, lastUserIdx + 1)
-    .slice(-MAX_CONTEXT_MESSAGES)
-    .map(({ role, content }) => ({ role, content }));
+  const context = selectContext(
+    convo.messages.slice(0, lastUserIdx + 1).map(({ role, content }) => ({ role, content })),
+  );
+  const history = context.messages;
   const provider = getProvider();
   const system = buildSystemPrompt(activeTone);
+  const contextTokens = context.tokens + estimateTokens(system);
 
-  emit('start', { tone: activeTone, provider: provider.name, model: provider.model });
+  emit('start', {
+    tone: activeTone,
+    provider: provider.name,
+    model: provider.model,
+    context: { messages: history.length, tokens: contextTokens, dropped: context.dropped },
+  });
 
   // 3. Stream tokens.
   const startedAt = Date.now();
@@ -136,6 +144,8 @@ export const sendMessage = async ({ conversationId, sessionId, content, regenera
       latencyMs: Date.now() - startedAt,
       inputTokens: usage.inputTokens,
       outputTokens: usage.outputTokens,
+      contextMessages: history.length,
+      contextDropped: context.dropped,
       stopped,
     },
   });

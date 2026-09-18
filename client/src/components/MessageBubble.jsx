@@ -93,6 +93,11 @@ export const MessageBubble = ({ message, streaming = false, tones = [], toneLabe
           )}
           {!isUser && message.meta?.latencyMs != null && <span className="chip">{(message.meta.latencyMs / 1000).toFixed(1)}s</span>}
           {!isUser && message.meta?.outputTokens != null && <span className="chip">{message.meta.outputTokens} tok</span>}
+          {!isUser && message.meta?.contextMessages != null && (
+            <span className="chip" title={message.meta.contextDropped ? `${message.meta.contextDropped} older turn(s) trimmed to fit the context budget` : 'Turns sent as context'}>
+              ctx {message.meta.contextMessages}{message.meta.contextDropped ? ` (−${message.meta.contextDropped})` : ''}
+            </span>
+          )}
           {!isUser && message.meta?.stopped && <span className="chip chip--stopped">stopped</span>}
           {streaming && <span className="chip">{statusText ?? 'streaming…'}</span>}
           <span>{fmtTime(message.createdAt)}</span>

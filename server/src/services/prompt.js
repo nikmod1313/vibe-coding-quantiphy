@@ -15,6 +15,3 @@ export const buildSystemPrompt = (toneId) => {
   if (!tone) throw new Error(`Unknown tone: ${toneId}`);
   return `${BASE_SYSTEM_PROMPT}\n\n## Response style: ${tone.label}\n${tone.instruction}`;
 };
-
-/** Keep the model context bounded: only the most recent N turns are sent. */
-export const MAX_CONTEXT_MESSAGES = 30;

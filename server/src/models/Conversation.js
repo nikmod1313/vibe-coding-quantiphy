@@ -14,6 +14,8 @@ const MessageSchema = new mongoose.Schema(
       latencyMs: Number,
       inputTokens: Number,
       outputTokens: Number,
+      contextMessages: Number, // how many prior turns were sent to the model
+      contextDropped: Number,  // how many were trimmed by the context budget
       stopped: { type: Boolean, default: false }, // user aborted mid-stream
     },
   },

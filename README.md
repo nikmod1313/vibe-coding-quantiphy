@@ -24,6 +24,7 @@ Extras that go beyond the brief:
 - **Auto-titling** — after the first exchange the server names the thread.
 - **Edit & resend** — rewrite any earlier prompt; the server truncates the thread from that point and re-runs it.
 - **Export** — download any thread as a Markdown transcript (rendered server-side, metadata included).
+- **Context-window management** — history is trimmed to a token budget (newest first, latest prompt always kept, never starting on an assistant turn); each reply records how many turns were sent and how many were trimmed (`ctx` chip).
 - **Private by default** — a signed anonymous session cookie scopes every thread to the browser that created it; no login needed, no cross-visitor leakage.
 - **Resilience** — transient provider errors (429/5xx) are retried with backoff *before* any token is streamed; friendly error bubble with Retry; partial replies are kept when the user stops generation.
 - **Reader-friendly scrolling** — auto-follow pauses when you scroll up; a "Latest" pill jumps back.
@@ -56,6 +57,7 @@ Extras that go beyond the brief:
 
 - `routes/` — translate HTTP ⇄ service calls. Zod validation on every body/param/query. The chat route only turns service events into SSE frames.
 - `services/chat.js` — the core use-case: persist user turn → build bounded history → compose system prompt → stream → persist assistant turn with metadata → auto-title.
+- `services/context.js` — token-budgeted history selection (see *Design decisions*).
 - `services/tone.js` — the three presets and their system-instruction text. **The client only ever sends a tone id**; all prompt engineering lives here.
 - `services/ai/` — one contract (`stream()` async generator + `complete()`), three adapters. Swapping providers is a config change, not a code change.
 - `models/Conversation.js` — conversation with embedded messages (one document per thread → a single read renders a whole chat; `listSummaries()` aggregation projects only what the sidebar needs).
@@ -162,7 +164,7 @@ All routes are scoped to the caller's session cookie.
 │   │   ├── middleware/     session (signed cookie), validate (zod), errorHandler
 │   │   ├── models/         Conversation
 │   │   ├── routes/         conversations, chat (SSE)
-│   │   └── services/       chat, tone, prompt, title, export, ai/{gemini,anthropic,openai}
+│   │   └── services/       chat, tone, prompt, context, title, export, ai/{gemini,anthropic,openai}
 │   ├── test/               node:test suites
 │   └── .env.example
 ├── .githooks/pre-commit    secret-leak guard
@@ -174,6 +176,7 @@ All routes are scoped to the caller's session cookie.
 - **SSE over WebSockets** — the stream is one-directional (server → client) and fits plain HTTP, proxies and `fetch`; WebSockets would add a second protocol for no gain.
 - **Embedded messages vs. separate collection** — one read per thread, atomic writes, and the sidebar uses an aggregation projection so it never loads message bodies. A separate collection would only pay off for very long threads or cross-thread analytics.
 - **Tone as data, not code paths** — adding a fourth tone is one object in `tone.js`; the UI, validation and badges pick it up automatically.
+- **Token budget instead of "last N messages"** — a fixed N either overflows the context on long messages or wastes it on short ones. Estimating ~4 chars/token is provider-agnostic and good enough to stay safely inside limits; a rolling summary of dropped turns is the natural next step and slots into `services/context.js` without touching the chat flow.
 - **Anonymous sessions instead of accounts** — the brief has no auth requirement, but unscoped threads are a real privacy bug. A signed cookie gives isolation now and a single swap-point (`req.sessionId`) for real users later.
 - **Edit = truncate + resend, not a branch tree** — full branching (assistant-ui style) needs parent pointers and a branch picker; truncation gives 90 % of the value with zero schema complexity.
 - **Provider adapters** — the chat service never imports a vendor SDK; the contract is a tiny async-generator, which keeps vendor churn (like a model being retired) a one-file fix.
