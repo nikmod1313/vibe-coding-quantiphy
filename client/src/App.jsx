@@ -8,6 +8,7 @@ import { ChatView } from './components/ChatView';
 import { Composer } from './components/Composer';
 import { DownloadIcon } from './components/Icons';
 import { InsightsPanel } from './components/InsightsPanel';
+import { useKonami, Confetti, parseSlashCommand } from './hooks/useEasterEggs';
 
 export default function App() {
   const [tones, setTones] = useState([]);
@@ -16,6 +17,7 @@ export default function App() {
   const [health, setHealth] = useState(null);
   const [focusKey, setFocusKey] = useState(0);
   const [showInsights, setShowInsights] = useState(false);
+  const party = useKonami();
 
   const { conversations, loading, query, setQuery, refresh, create, rename, remove } = useConversations();
   const chat = useChat(activeId, { onConversationUpdated: refresh });
@@ -81,8 +83,18 @@ export default function App() {
 
   const title = chat.conversation?.title ?? 'New conversation';
 
+  const onSlashCommand = useCallback(
+    (text) => {
+      const cmd = parseSlashCommand(text, tones, activeTone);
+      if (cmd?.tone) (activeId ? chat.setTone(cmd.tone) : setDefaultTone(cmd.tone));
+      return cmd;
+    },
+    [tones, activeTone, activeId, chat],
+  );
+
   return (
-    <div className="app">
+    <div className={`app ${party ? 'app--party' : ''}`}>
+      {party && <Confetti />}
       <Sidebar
         conversations={conversations}
         loading={loading}
@@ -132,7 +144,7 @@ export default function App() {
           onDismissError={() => chat.setError(null)}
         />
 
-        <Composer onSend={send} onStop={chat.stop} status={chat.status} focusKey={focusKey} />
+        <Composer onSend={send} onStop={chat.stop} status={chat.status} focusKey={focusKey} onSlashCommand={onSlashCommand} tones={tones} tone={activeTone} />
       </main>
       {showInsights && <InsightsPanel onClose={() => setShowInsights(false)} onOpenConversation={setActiveId} />}
     </div>

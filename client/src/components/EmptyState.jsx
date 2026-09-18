@@ -1,3 +1,5 @@
+import { greeting } from '../hooks/useEasterEggs';
+
 const SUGGESTIONS = {
   professional: [
     { title: 'Draft a status update', prompt: 'Draft a concise weekly status update for a software project that shipped a streaming chat feature and is planning MongoDB persistence next.' },
@@ -19,7 +21,7 @@ const SUGGESTIONS = {
 export const EmptyState = ({ tone = 'professional', onPick }) => (
   <div className="empty">
     <div className="empty__logo"><span><i /><i /><i /></span></div>
-    <h1>What's the <em>vibe</em> today?</h1>
+    <h1>{greeting()} — what's the <em>vibe</em>?</h1>
     <p>Pick a tone above, then ask anything. Responses stream live and every thread is saved to your history.</p>
     <div className="suggestions">
       {(SUGGESTIONS[tone] ?? SUGGESTIONS.professional).map((s) => (
