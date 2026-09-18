@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api/client';
 import { useConversations } from './hooks/useConversations';
 import { useChat } from './hooks/useChat';
@@ -34,30 +34,26 @@ export default function App() {
     setFocusKey((k) => k + 1);
   }, [create, activeTone]);
 
-  // Sending from the empty state with no thread yet creates one on the fly.
+  // Sending from the empty state with no thread yet creates one on the fly;
+  // the message is parked until useChat has bound to the new thread.
+  const pendingRef = useRef(null);
   const send = useCallback(
     async (text) => {
-      let id = activeId;
-      if (!id) {
-        const convo = await create(activeTone);
-        id = convo._id;
-        setActiveId(id);
-        // useChat re-binds to the new id on next render; defer the send.
-        setTimeout(() => window.dispatchEvent(new CustomEvent('vibechat:send', { detail: { id, text } })), 0);
-        return;
-      }
-      chat.send(text);
+      if (activeId) return chat.send(text);
+      const convo = await create(activeTone);
+      pendingRef.current = { id: convo._id, text };
+      setActiveId(convo._id);
     },
     [activeId, activeTone, create, chat],
   );
 
   useEffect(() => {
-    const handler = (e) => {
-      if (e.detail.id === activeId && chat.conversation?._id === activeId) chat.send(e.detail.text);
-    };
-    window.addEventListener('vibechat:send', handler);
-    return () => window.removeEventListener('vibechat:send', handler);
-  }, [activeId, chat]);
+    const pending = pendingRef.current;
+    if (pending && chat.conversation?._id === pending.id && chat.status === 'idle') {
+      pendingRef.current = null;
+      chat.send(pending.text);
+    }
+  }, [chat]);
 
   const regenerate = useCallback(
     (tone) => {

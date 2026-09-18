@@ -12,6 +12,10 @@ export const Composer = ({ onSend, onStop, status, disabled, focusKey }) => {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    if (!value) {
+      el.style.height = '';
+      return;
+    }
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
   }, [value]);
