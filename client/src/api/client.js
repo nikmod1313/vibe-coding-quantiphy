@@ -37,11 +37,11 @@ export const api = {
  * @param {AbortSignal} [args.signal]
  * @param {(event: string, data: any) => void} args.onEvent
  */
-export const streamMessage = async ({ conversationId, content, regenerate, tone, signal, onEvent }) => {
+export const streamMessage = async ({ conversationId, content, regenerate, editMessageId, tone, signal, onEvent }) => {
   const res = await fetch(`${BASE}/conversations/${conversationId}/messages`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
-    body: JSON.stringify(regenerate ? { regenerate: true, tone } : { content, tone }),
+    body: JSON.stringify(regenerate ? { regenerate: true, tone } : { content, tone, editMessageId }),
     signal,
   });
   if (!res.ok || !res.body) {

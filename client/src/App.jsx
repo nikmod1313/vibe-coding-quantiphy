@@ -56,6 +56,7 @@ export default function App() {
   }, [chat]);
 
   const regenerate = useCallback((tone) => chat.send(null, tone), [chat]);
+  const edit = useCallback((messageId, text) => chat.send(text, undefined, { editMessageId: messageId }), [chat]);
 
   const onDelete = useCallback(
     async (id) => {
@@ -112,6 +113,7 @@ export default function App() {
           error={chat.error}
           retrying={chat.retrying}
           onRetry={chat.retry}
+          onEdit={edit}
           tone={activeTone}
           tones={tones}
           onPickSuggestion={send}

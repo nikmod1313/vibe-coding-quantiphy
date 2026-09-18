@@ -3,7 +3,7 @@ import { ArrowDownIcon, RefreshIcon } from './Icons';
 import { MessageBubble } from './MessageBubble';
 import { EmptyState } from './EmptyState';
 
-export const ChatView = ({ messages, draft, status, error, retrying, tone, tones, onPickSuggestion, onRegenerate, onRetry, onDismissError }) => {
+export const ChatView = ({ messages, draft, status, error, retrying, tone, tones, onPickSuggestion, onRegenerate, onRetry, onEdit, onDismissError }) => {
   const scrollRef = useRef(null);
   const [following, setFollowing] = useState(true);
   const toneLabel = (id) => tones.find((t) => t.id === id)?.label;
@@ -45,6 +45,7 @@ export const ChatView = ({ messages, draft, status, error, retrying, tone, tones
               tones={tones}
               toneLabel={toneLabel}
               onRegenerate={isLastAssistant ? onRegenerate : undefined}
+              onEdit={m.role === 'user' && status === 'idle' && !String(m._id).startsWith('temp-') ? (text) => onEdit(m._id, text) : undefined}
             />
           );
         })}

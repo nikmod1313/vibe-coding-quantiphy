@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Markdown } from './Markdown';
 import { TONE_COLORS } from './ToneToggle';
-import { CopyIcon, CheckIcon, RefreshIcon } from './Icons';
+import { CopyIcon, CheckIcon, RefreshIcon, EditIcon } from './Icons';
 
 const fmtTime = (iso) => (iso ? new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '');
 
@@ -32,9 +32,18 @@ const RegenerateMenu = ({ tones, onPick }) => {
   );
 };
 
-export const MessageBubble = ({ message, streaming = false, tones = [], toneLabel, onRegenerate, statusText }) => {
+export const MessageBubble = ({ message, streaming = false, tones = [], toneLabel, onRegenerate, onEdit, statusText }) => {
   const isUser = message.role === 'user';
   const [copied, setCopied] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(message.content);
+
+  const commitEdit = () => {
+    const next = text.trim();
+    setEditing(false);
+    if (next && next !== message.content) onEdit(next);
+    else setText(message.content);
+  };
 
   const copy = async () => {
     await navigator.clipboard.writeText(message.content);
@@ -46,8 +55,26 @@ export const MessageBubble = ({ message, streaming = false, tones = [], toneLabe
     <div className={`msg msg--${message.role}`}>
       <div className="msg__avatar">{isUser ? 'You' : <span style={{ display: 'flex', gap: 2 }}><i style={{ width: 3, height: 3, borderRadius: 2, background: '#fff' }} /><i style={{ width: 3, height: 3, borderRadius: 2, background: '#fff' }} /><i style={{ width: 3, height: 3, borderRadius: 2, background: '#fff' }} /></span>}</div>
       <div className="msg__body">
-        <div className="bubble">
-          {isUser ? (
+        <div className={`bubble ${editing ? 'bubble--editing' : ''}`}>
+          {isUser && editing ? (
+            <div className="edit">
+              <textarea
+                autoFocus
+                rows={Math.min(8, Math.max(2, text.split('\n').length))}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitEdit(); }
+                  if (e.key === 'Escape') { setText(message.content); setEditing(false); }
+                }}
+              />
+              <div className="edit__bar">
+                <span>Sends again from here · replies below will be replaced</span>
+                <button className="chip" onClick={() => { setText(message.content); setEditing(false); }}>cancel</button>
+                <button className="chip chip--action" onClick={commitEdit}>save & resend</button>
+              </div>
+            </div>
+          ) : isUser ? (
             message.content
           ) : message.content ? (
             <>
@@ -69,8 +96,9 @@ export const MessageBubble = ({ message, streaming = false, tones = [], toneLabe
           {!isUser && message.meta?.stopped && <span className="chip chip--stopped">stopped</span>}
           {streaming && <span className="chip">{statusText ?? 'streaming…'}</span>}
           <span>{fmtTime(message.createdAt)}</span>
-          {!streaming && (
+          {!streaming && !editing && (
             <div className="msg__actions">
+              {isUser && onEdit && <button className="icon-btn" title="Edit & resend" onClick={() => setEditing(true)}><EditIcon /></button>}
               <button className="icon-btn" title="Copy" onClick={copy}>{copied ? <CheckIcon /> : <CopyIcon />}</button>
               {!isUser && onRegenerate && <RegenerateMenu tones={tones} onPick={onRegenerate} />}
             </div>

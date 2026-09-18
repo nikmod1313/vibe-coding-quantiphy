@@ -70,3 +70,11 @@ test('search query length is capped', async () => {
   const res = await json(`/api/conversations?q=${'a'.repeat(101)}`);
   assert.equal(res.status, 400);
 });
+
+test('edit & resend rejects malformed message ids and exclusive flags', async () => {
+  const id = '6aacb714e5e82b58a4a8c5cc';
+  let res = await json(`/api/conversations/${id}/messages`, { method: 'POST', body: JSON.stringify({ content: 'x', editMessageId: 'nope' }) });
+  assert.equal(res.status, 400);
+  res = await json(`/api/conversations/${id}/messages`, { method: 'POST', body: JSON.stringify({ regenerate: true, editMessageId: id }) });
+  assert.equal(res.status, 400);
+});

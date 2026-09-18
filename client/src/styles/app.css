@@ -205,6 +205,13 @@ button.chip { cursor: pointer; }
 .msg__actions { display: flex; gap: 2px; margin-left: auto; opacity: 0; transition: opacity 0.15s; }
 .msg:hover .msg__actions { opacity: 1; }
 
+/* edit & resend */
+.msg--user .msg__body:has(.bubble--editing) { width: 100%; max-width: 100%; }
+.msg--user .bubble--editing { width: 100%; white-space: normal; }
+.edit textarea { width: 100%; resize: vertical; border: 0; outline: none; background: rgba(0,0,0,0.25); border-radius: 8px; padding: 8px 10px; line-height: 1.5; }
+.edit__bar { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 11px; color: var(--text-2); }
+.edit__bar span { margin-right: auto; }
+
 /* regenerate menu */
 .regen { position: relative; }
 .regen__menu {

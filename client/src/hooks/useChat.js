@@ -40,9 +40,11 @@ export const useChat = (conversationId, { onConversationUpdated } = {}) => {
   /**
    * @param {string|null} content  user prompt, or null to regenerate the last answer
    * @param {string} [tone]        tone override for this turn
+   * @param {object} [opts]
+   * @param {string} [opts.editMessageId]  rewrite this user message and re-run from it
    */
   const send = useCallback(
-    async (content, tone) => {
+    async (content, tone, { editMessageId } = {}) => {
       if (!conversationId || status !== 'idle') return;
       const regenerate = content == null;
       setError(null);
@@ -55,7 +57,10 @@ export const useChat = (conversationId, { onConversationUpdated } = {}) => {
       // Optimistic user bubble; replaced by the persisted one from the server.
       const tempId = `temp-${Date.now()}`;
       if (!regenerate) {
-        setMessages((prev) => [...prev, { _id: tempId, role: 'user', content, createdAt: new Date().toISOString() }]);
+        setMessages((prev) => {
+          const base = editMessageId ? prev.slice(0, prev.findIndex((m) => m._id === editMessageId)) : prev;
+          return [...base, { _id: tempId, role: 'user', content, createdAt: new Date().toISOString() }];
+        });
       }
 
       try {
@@ -63,6 +68,7 @@ export const useChat = (conversationId, { onConversationUpdated } = {}) => {
           conversationId,
           content,
           regenerate,
+          editMessageId,
           tone,
           signal: controller.signal,
           onEvent: (event, data) => {

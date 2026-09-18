@@ -16,6 +16,7 @@ import { maybeGenerateTitle } from './title.js';
  * @param {string} args.conversationId
  * @param {string} [args.content]       user prompt (omitted when regenerating)
  * @param {boolean} [args.regenerate]   re-answer the last user prompt without persisting a new user turn
+ * @param {string} [args.editMessageId] rewrite this earlier user message: the thread is truncated from it and re-run
  * @param {string} [args.tone]          overrides the conversation's active tone for this turn
  * @param {AbortSignal} args.signal     aborts the upstream model request
  * @param {(event: string, data: object) => void} args.emit
@@ -45,12 +46,21 @@ export const humanizeProviderError = (err) => {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-export const sendMessage = async ({ conversationId, content, regenerate = false, tone, signal, emit }) => {
+export const sendMessage = async ({ conversationId, content, regenerate = false, editMessageId, tone, signal, emit }) => {
   const convo = await Conversation.findById(conversationId);
   if (!convo) throw new HttpError(404, 'Conversation not found');
 
   if (tone && isTone(tone) && tone !== convo.tone) convo.tone = tone;
   const activeTone = convo.tone;
+
+  // 0. Editing an earlier prompt: drop it and everything after it, then
+  //    continue exactly like a fresh send. Only user messages are editable.
+  if (editMessageId) {
+    const idx = convo.messages.findIndex((m) => String(m._id) === editMessageId && m.role === 'user');
+    if (idx === -1) throw new HttpError(404, 'Message not found or not editable');
+    convo.messages.splice(idx);
+    emit('truncated', { fromMessageId: editMessageId });
+  }
 
   // 1. Persist the user turn immediately so it survives a failed generation.
   if (!regenerate) {
