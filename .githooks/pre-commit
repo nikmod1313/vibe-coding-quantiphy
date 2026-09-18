@@ -1,0 +1,14 @@
+#!/bin/sh
+# Blocks commits that contain anything that looks like a provider API key.
+# Enable with: git config core.hooksPath .githooks
+PATTERN='AIza[0-9A-Za-z_-]{30,}|sk-ant-[0-9A-Za-z_-]{20,}|sk-[0-9A-Za-z]{40,}'
+if git diff --cached -U0 | grep -E "^\+" | grep -Eq "$PATTERN"; then
+  echo "✖ Commit blocked: staged changes contain what looks like an API key." >&2
+  echo "  Keep secrets in server/.env (git-ignored) only." >&2
+  exit 1
+fi
+if git diff --cached --name-only | grep -Eq '(^|/)\.env$'; then
+  echo "✖ Commit blocked: .env must never be committed." >&2
+  exit 1
+fi
+exit 0

@@ -1,10 +1,12 @@
 import { env } from '../../config/env.js';
 import { createAnthropicProvider } from './anthropic.js';
 import { createOpenAIProvider } from './openai.js';
+import { createGeminiProvider } from './gemini.js';
 
 const factories = {
   anthropic: createAnthropicProvider,
   openai: createOpenAIProvider,
+  gemini: createGeminiProvider,
 };
 
 let instance;
